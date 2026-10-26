@@ -1,0 +1,4 @@
+Fix :mod:`venv` so that the prompt value (from ``--prompt`` or the
+environment directory name) is escaped for the bash and zsh prompt
+display pass.  Previously a crafted prompt could execute commands
+when the shell redraws ``PS1``.

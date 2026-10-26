@@ -774,6 +774,35 @@ class BasicTest(BaseTest):
     @unittest.skipIf(os.name == 'nt', 'contains invalid characters on Windows')
     @unittest.skipIf(sys.platform.startswith('netbsd'),
                      "NetBSD csh fails with quoted special chars; see gh-139308")
+    def test_prompt_escape_bash(self):
+        """
+        gh-160732: the prompt value must be escaped for the bash/zsh
+        prompt-display pass so that $() / backticks are not executed
+        when PS1 is redrawn.
+        """
+        rmtree(self.env_dir)
+        bash = shutil.which('bash')
+        if bash is None:
+            self.skipTest('bash required for this test')
+
+        # A prompt that would execute if not escaped.
+        prompt = '$(echo pwned)'
+        builder = venv.EnvBuilder(prompt=prompt, clear=True)
+        builder.create(self.env_dir)
+
+        activate = os.path.join(self.env_dir, self.bindir, 'activate')
+        test_script = os.path.join(self.env_dir, 'test_prompt_escape.sh')
+        with open(test_script, 'w') as f:
+            f.write(
+                f'source {shlex.quote(activate)}\n'
+                'printf "%s\n" "$PS1"\n'
+                'deactivate\n'
+            )
+        out, err = check_output([bash, test_script])
+        # The literal form must appear; the command must not have run.
+        self.assertIn(b'$(echo pwned)', out)
+        self.assertNotIn(b'pwned)', out.replace(b'$(echo pwned)', b''))
+
     def test_special_chars_csh(self):
         """
         Test that the template strings are quoted properly (csh)

@@ -532,6 +532,20 @@ class EnvBuilder:
             quote = shlex.quote
 
         replacements = {key: quote(s) for key, s in replacements.items()}
+
+        # gh-160732: escape the prompt for the bash/zsh prompt-display pass.
+        # shlex.quote protects the shell assignment, but when the value is
+        # later placed in PS1, bash (promptvars) and zsh (PROMPT_SUBST)
+        # re-expand $ ` and \.  Escape those so the prompt is literal.
+        if (script_path.endswith('/activate') or
+                script_path.endswith('\\activate')):
+            prompt = replacements.get('__VENV_PROMPT__', '')
+            prompt = (prompt
+                      .replace('\\', '\\\\')
+                      .replace('$', '\\$')
+                      .replace('`', '\\`'))
+            replacements['__VENV_PROMPT__'] = prompt
+
         for key, quoted in replacements.items():
             text = text.replace(key, quoted)
         return text
